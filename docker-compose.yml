@@ -1,0 +1,28 @@
+version: '3'
+services:
+  db:
+    image: mysql:8.0
+    container_name: sparta_subject2_mysql
+    restart: always
+    ports:
+      - 3307:3306
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: stock
+      TZ: Asia/Seoul
+    volumes:
+      - ./schema.sql:/docker-entrypoint-initdb.d/schema.sql
+    platform: linux/x86_64
+#services:
+#  mysql:
+#    image: mysql:8.0
+#    container_name: springBasic
+#    environment:
+#      MYSQL_ROOT_PASSWORD: root
+#      MYSQL_DATABASE: review
+#    MYSQL_CHARSET: utf8mb4
+#      MYSQL_COLLATION: utf8mb4_unicode_ci
+#      ports:
+#        - "3307:3306"
+#  volumes:
+#    - ./schema.sql:/docker-entrypoint-initdb.d/schema.sql
