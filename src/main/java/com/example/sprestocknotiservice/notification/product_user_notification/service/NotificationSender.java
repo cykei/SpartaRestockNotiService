@@ -47,7 +47,7 @@ public class NotificationSender {
         int limit = 500;
         while (limit > 0 && !queue.isEmpty()) {
 
-            // 1. 유저에게 메시지를 전송한다. poll 함과 동시에 보냈다고 가정
+            // 1. 유저에게 메시지를 전송한다
             ProductUserNotification productUserNotification = queue.poll();
             // 1-2. 재고상태가 0이면 보내면 안된다. product를 구매하면 products의 해당 productCount가 갱신된다고 가정한다.
             Product product = products.get(productUserNotification.getProductId());
@@ -64,7 +64,7 @@ public class NotificationSender {
                     ProductUserNotificationHistory history = ProductUserNotificationHistory.makeHistory(product, productUserNotification);
                     productUserNotificationHistoryRepository.save(history);
                 } else {
-                    // 재고가 0이다.
+                    // 재고가 0인경우, 상태를 SOLD_OUT로 갱신하고, 등록되있던 동일회차의 알림전송요청은 스킵한다.
                     ProductNotificationHistory lastHistory = productNotificationHistoryRepository.findFirstByProductIdAndProductRoundAndProductStatusIn(product.getId(), product.getRound(), List.of(ProductStatus.CANCELED_BY_ERROR, ProductStatus.CANCELED_BY_SOLD_OUT));
                     if (Objects.isNull(lastHistory)) {
                         ProductNotificationHistory soldOutHistory =
