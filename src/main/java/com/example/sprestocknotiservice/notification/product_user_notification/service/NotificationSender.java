@@ -1,17 +1,19 @@
 package com.example.sprestocknotiservice.notification.product_user_notification.service;
 
-import com.example.sprestocknotiservice.product.entity.Product;
 import com.example.sprestocknotiservice.notification.product_notification.ProductNotificationHistory;
+import com.example.sprestocknotiservice.notification.product_notification.ProductStatus;
+import com.example.sprestocknotiservice.notification.product_notification.repository.ProductNotificationHistoryRepository;
 import com.example.sprestocknotiservice.notification.product_user_notification.ProductUserNotification;
 import com.example.sprestocknotiservice.notification.product_user_notification.ProductUserNotificationHistory;
-import com.example.sprestocknotiservice.notification.product_notification.repository.ProductNotificationHistoryRepository;
 import com.example.sprestocknotiservice.notification.product_user_notification.repository.ProductUserNotificationHistoryRepository;
 import com.example.sprestocknotiservice.notification.product_user_notification.repository.ProductUserNotificationRepository;
+import com.example.sprestocknotiservice.product.entity.Product;
 import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Objects;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
@@ -25,9 +27,9 @@ public class NotificationSender {
     private final ProductNotificationHistoryRepository productNotificationHistoryRepository;
 
 
-    private ConcurrentHashMap<Long, Product> products = new ConcurrentHashMap<>();
-    private ConcurrentLinkedQueue<ProductUserNotification> queue = new ConcurrentLinkedQueue();
-    private ConcurrentHashMap<Long, Queue<Long>> productLastNotification = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Long, Product> products = new ConcurrentHashMap<>();
+    private final ConcurrentLinkedQueue<ProductUserNotification> queue = new ConcurrentLinkedQueue<>();
+    private final ConcurrentHashMap<Long, Queue<Long>> productLastNotification = new ConcurrentHashMap<>();
 
     public void register(ProductUserNotification notification) {
         queue.add(notification);
@@ -66,6 +68,15 @@ public class NotificationSender {
                     // 2. 회차정보와 함께 유저 알람전송 히스토리를 기록한다.
                     ProductUserNotificationHistory history = ProductUserNotificationHistory.makeHistory(product, productUserNotification);
                     productUserNotificationHistoryRepository.save(history);
+                } else {
+                    // 재고가 0이다.
+                    ProductNotificationHistory lastHistory = productNotificationHistoryRepository.findFirstByProductIdAndProductRoundAndProductStatusIn(product.getId(), product.getRound(), List.of(ProductStatus.CANCELED_BY_ERROR, ProductStatus.CANCELED_BY_SOLD_OUT));
+                    if (Objects.isNull(lastHistory)) {
+                        ProductNotificationHistory soldOutHistory =
+                                ProductNotificationHistory.canceled(product, true, productUserNotification.getUserId());
+                        productNotificationHistoryRepository.save(soldOutHistory);
+                    }
+                    continue;
                 }
 
                 Long lastId = productLastNotification.get(product.getId()).peek();
