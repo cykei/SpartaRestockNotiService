@@ -17,7 +17,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
 
 @RequiredArgsConstructor
 @Service
@@ -28,15 +27,11 @@ public class NotificationSender {
 
 
     private final ConcurrentHashMap<Long, Product> products = new ConcurrentHashMap<>();
-    private final ConcurrentLinkedQueue<ProductUserNotification> queue = new ConcurrentLinkedQueue<>();
+    private final Queue<ProductUserNotification> queue = new LinkedList<>();
     private final ConcurrentHashMap<Long, Queue<Long>> productLastNotification = new ConcurrentHashMap<>();
 
     public void register(ProductUserNotification notification) {
         queue.add(notification);
-    }
-
-    public void registerProduct(Product product) {
-        products.put(product.getId(), product);
     }
 
     public void registerReStock(Product product, long lastUserId) {
