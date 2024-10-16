@@ -1,21 +1,22 @@
 package com.example.sprestocknotiservice.notification.product_user_notification.service;
 
-import com.example.sprestocknotiservice.product.entity.Product;
 import com.example.sprestocknotiservice.notification.product_notification.ProductNotificationHistory;
+import com.example.sprestocknotiservice.notification.product_notification.ProductStatus;
+import com.example.sprestocknotiservice.notification.product_notification.repository.ProductNotificationHistoryRepository;
 import com.example.sprestocknotiservice.notification.product_user_notification.ProductUserNotification;
 import com.example.sprestocknotiservice.notification.product_user_notification.ProductUserNotificationHistory;
-import com.example.sprestocknotiservice.notification.product_notification.repository.ProductNotificationHistoryRepository;
 import com.example.sprestocknotiservice.notification.product_user_notification.repository.ProductUserNotificationHistoryRepository;
 import com.example.sprestocknotiservice.notification.product_user_notification.repository.ProductUserNotificationRepository;
+import com.example.sprestocknotiservice.product.entity.Product;
 import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Objects;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
 
 @RequiredArgsConstructor
 @Service
@@ -25,16 +26,12 @@ public class NotificationSender {
     private final ProductNotificationHistoryRepository productNotificationHistoryRepository;
 
 
-    private ConcurrentHashMap<Long, Product> products = new ConcurrentHashMap<>();
-    private ConcurrentLinkedQueue<ProductUserNotification> queue = new ConcurrentLinkedQueue();
-    private ConcurrentHashMap<Long, Queue<Long>> productLastNotification = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Long, Product> products = new ConcurrentHashMap<>();
+    private final Queue<ProductUserNotification> queue = new LinkedList<>();
+    private final ConcurrentHashMap<Long, Queue<Long>> productLastNotification = new ConcurrentHashMap<>();
 
     public void register(ProductUserNotification notification) {
         queue.add(notification);
-    }
-
-    public void registerProduct(Product product) {
-        products.put(product.getId(), product);
     }
 
     public void registerReStock(Product product, long lastUserId) {
@@ -50,7 +47,7 @@ public class NotificationSender {
         int limit = 500;
         while (limit > 0 && !queue.isEmpty()) {
 
-            // 1. 유저에게 메시지를 전송한다. poll 함과 동시에 보냈다고 가정
+            // 1. 유저에게 메시지를 전송한다
             ProductUserNotification productUserNotification = queue.poll();
             // 1-2. 재고상태가 0이면 보내면 안된다. product를 구매하면 products의 해당 productCount가 갱신된다고 가정한다.
             Product product = products.get(productUserNotification.getProductId());
@@ -66,6 +63,15 @@ public class NotificationSender {
                     // 2. 회차정보와 함께 유저 알람전송 히스토리를 기록한다.
                     ProductUserNotificationHistory history = ProductUserNotificationHistory.makeHistory(product, productUserNotification);
                     productUserNotificationHistoryRepository.save(history);
+                } else {
+                    // 재고가 0인경우, 상태를 SOLD_OUT로 갱신하고, 등록되있던 동일회차의 알림전송요청은 스킵한다.
+                    ProductNotificationHistory lastHistory = productNotificationHistoryRepository.findFirstByProductIdAndProductRoundAndProductStatusIn(product.getId(), product.getRound(), List.of(ProductStatus.CANCELED_BY_ERROR, ProductStatus.CANCELED_BY_SOLD_OUT));
+                    if (Objects.isNull(lastHistory)) {
+                        ProductNotificationHistory soldOutHistory =
+                                ProductNotificationHistory.canceled(product, true, productUserNotification.getUserId());
+                        productNotificationHistoryRepository.save(soldOutHistory);
+                    }
+                    continue;
                 }
 
                 Long lastId = productLastNotification.get(product.getId()).peek();

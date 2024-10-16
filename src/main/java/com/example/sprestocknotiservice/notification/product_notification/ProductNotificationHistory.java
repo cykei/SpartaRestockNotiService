@@ -22,7 +22,7 @@ public class ProductNotificationHistory {
 
     @Enumerated(EnumType.STRING)
     private ProductStatus productStatus;
-    private Long lastSentUserId;
+    private Long lastUserId;
 
     @CreationTimestamp
     LocalDateTime createDateTime;
@@ -52,6 +52,6 @@ public class ProductNotificationHistory {
         this.productId = productId;
         this.productRound = productRound;
         this.productStatus = productStatus;
-        this.lastSentUserId = userId;
+        this.lastUserId = userId;
     }
 }
